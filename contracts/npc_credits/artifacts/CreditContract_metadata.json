@@ -1,0 +1,809 @@
+{
+	"compiler": {
+		"version": "0.8.25+commit.b61c2a91"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "certificateId",
+						"type": "int256"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "balance",
+						"type": "int256"
+					}
+				],
+				"name": "CertificateCreated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "price",
+						"type": "int256"
+					}
+				],
+				"name": "CreditsBought",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					}
+				],
+				"name": "CreditsDonated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					}
+				],
+				"name": "CreditsIssued",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "senderAccountID",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "receiverAccountID",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					},
+					{
+						"indexed": false,
+						"internalType": "int256",
+						"name": "price",
+						"type": "int256"
+					}
+				],
+				"name": "CreditsTransferred",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "previousOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnershipTransferred",
+				"type": "event"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_accountID",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_creditType",
+						"type": "string"
+					},
+					{
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					},
+					{
+						"internalType": "int256",
+						"name": "price",
+						"type": "int256"
+					}
+				],
+				"name": "buyCredits",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_creditsBought",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_accountID",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_creditType",
+						"type": "string"
+					},
+					{
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					}
+				],
+				"name": "donateCredits",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_creditsDonated",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					}
+				],
+				"name": "getAccountBalance",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_accountBalance",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					}
+				],
+				"name": "getAccountCertificates",
+				"outputs": [
+					{
+						"internalType": "int256[]",
+						"name": "_accountCertificates",
+						"type": "int256[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "accountID",
+						"type": "string"
+					}
+				],
+				"name": "getAccountTotalBalance",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_accountTotalBalance",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "int256",
+						"name": "certificateId",
+						"type": "int256"
+					}
+				],
+				"name": "getCertificateById",
+				"outputs": [
+					{
+						"components": [
+							{
+								"internalType": "int256",
+								"name": "id",
+								"type": "int256"
+							},
+							{
+								"internalType": "string",
+								"name": "buyer",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "producer",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "verifier",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "creditType",
+								"type": "string"
+							},
+							{
+								"internalType": "int256",
+								"name": "balance",
+								"type": "int256"
+							},
+							{
+								"internalType": "int256",
+								"name": "price",
+								"type": "int256"
+							},
+							{
+								"internalType": "uint256",
+								"name": "timestamp",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct CreditContract.Certificate",
+						"name": "_certificate",
+						"type": "tuple"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getCreditTypes",
+				"outputs": [
+					{
+						"internalType": "string[]",
+						"name": "_creditTypes",
+						"type": "string[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getOwner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "_owner",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					}
+				],
+				"name": "getProducerVerifiers",
+				"outputs": [
+					{
+						"internalType": "string[]",
+						"name": "_producerVerifiers",
+						"type": "string[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getProducers",
+				"outputs": [
+					{
+						"internalType": "string[]",
+						"name": "_producers",
+						"type": "string[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					}
+				],
+				"name": "getSupply",
+				"outputs": [
+					{
+						"components": [
+							{
+								"internalType": "int256",
+								"name": "issued",
+								"type": "int256"
+							},
+							{
+								"internalType": "int256",
+								"name": "available",
+								"type": "int256"
+							},
+							{
+								"internalType": "int256",
+								"name": "donated",
+								"type": "int256"
+							}
+						],
+						"internalType": "struct CreditContract.Supply",
+						"name": "_supply",
+						"type": "tuple"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTotalCertificates",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_totalCertificates",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTotalDonatedSupply",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_totalDonatedSupply",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTotalSold",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_totalSold",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTotalSupply",
+				"outputs": [
+					{
+						"internalType": "int256",
+						"name": "_totalSupply",
+						"type": "int256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "creditType",
+						"type": "string"
+					}
+				],
+				"name": "isCreditRegistered",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_creditRegistered",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					}
+				],
+				"name": "isProducerRegistered",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_producerRegistered",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "verifier",
+						"type": "string"
+					}
+				],
+				"name": "isProducerVerified",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_producerVerified",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_creditType",
+						"type": "string"
+					},
+					{
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					}
+				],
+				"name": "issueCredits",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_issued",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "senderAccountID",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "receiverAccountID",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_producer",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_verifier",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_creditType",
+						"type": "string"
+					},
+					{
+						"internalType": "int256",
+						"name": "amount",
+						"type": "int256"
+					},
+					{
+						"internalType": "int256",
+						"name": "price",
+						"type": "int256"
+					}
+				],
+				"name": "transferCredits",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "_creditsTransferred",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "transferOwnership",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/npc_credits/npc_credits.sol": "CreditContract"
+		},
+		"evmVersion": "cancun",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/npc_credits/npc_credits.sol": {
+			"keccak256": "0x61df62a56a22d96b72b295475172f241f2f2507f13d73067fa1be142f5f9663c",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://7753cc221f2230eb21661aaa4a5bf2f7f86854ae0b75c7278e0a53d94a5d7857",
+				"dweb:/ipfs/QmUFcokYwdqn9FJDkWwuMVPVe9AhMz7dNVipN5AVAi7onW"
+			]
+		}
+	},
+	"version": 1
+}
