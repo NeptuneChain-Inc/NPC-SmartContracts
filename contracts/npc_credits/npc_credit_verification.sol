@@ -12,99 +12,172 @@ contract NeptuneChainVerification is
     Pausable,
     ReentrancyGuard
 {
-    bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
-    int256 qTime = 1 hours;
-    
+    bytes32 public constant BACKEND_ROLE = keccak256("BACKEND_ROLE");
+    int256 public qTime = 0.1 hours;
+
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE"); // Define DEFAULT_ADMIN_ROLE
 
-    struct VerificationData {
-        address farmer;
-        string ipfsMetadataHash; // IPFS hash for data
-        bool approved;
+    struct AccountData {
+      address txAddress;
+      bool isVerifier;
     }
 
-    mapping(address => uint256) public verifierReputation;
-    mapping(uint256 => VerificationData) public verifications;
-    mapping(address => uint256) public lastSubmission;
+    struct VerificationData {
+        uint256 id;
+        string accountID;
+        bool approved;
+        uint256[] disputes; // Array of disputeIDs
+    }
 
+    struct DisputeData {
+        string assetID;
+        string reason;
+        string solution;
+        string status;
+        bool closed;
+    }
 
-    event DataSubmitted(uint256 dataId, address indexed farmer);
-    event Verified(uint256 dataId, address indexed verifier);
-    event DisputeRaised(uint256 dataId, address indexed farmer, string reason);
-    event DisputeResolved(uint256 dataId, address indexed admin, bool approved);
+    uint256 totalSubmissions;
+    uint256 totalApprovals;
+    uint256 totalDisputes;
+
+    mapping(string => VerificationData) public verifications; // assetID => VerificationData
+    mapping(uint256 => DisputeData) public disputes; // disputeID => DisputeData
+    mapping(string => uint256) public lastSubmission; // accountID => timestamp
+    mapping(string => AccountData) public accountData; // accountID => address
+    mapping(string => uint256) public verifierReputation; // accountID => score
+
+    event AssetSubmitted(int256 id, string assetID, string accountID);
+    event AssetVerified(int256 id, string assetID, string accountID);
+    event DisputeRaised(
+        string assetID,
+        int256 disputeID,
+        string reason,
+        string accountID
+    );
+    event DisputeResolved(
+        string assetID,
+        int256 disputeID,
+        string solution,
+        string accountID
+    );
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {
         _grantRole(ADMIN_ROLE, msg.sender);
-        _grantRole(VERIFIER_ROLE, msg.sender);
+        _grantRole(BACKEND_ROLE, msg.sender);
     }
 
-    modifier rateLimited(address user) {
+    modifier rateLimited(string memory accountID) {
         require(
-            int256(block.timestamp - lastSubmission[user]) > qTime,
-            "You need to wait for 1 hour between submissions."
+            int256(block.timestamp - lastSubmission[accountID]) > qTime,
+            "You need to wait before another submission."
         );
         _;
     }
 
-    function submitData(string memory ipfsMetadataHash) external whenNotPaused rateLimited(msg.sender) returns (uint256) {
-        verifications[totalSupply()] = VerificationData({
-            farmer: msg.sender,
-            ipfsMetadataHash: ipfsMetadataHash,
-            approved: false
-        });
-        lastSubmission[msg.sender] = block.timestamp;
-        emit DataSubmitted(totalSupply(), msg.sender);
-        return totalSupply();
-    }
-
-    function approveData(uint256 dataId) external whenNotPaused onlyRole(VERIFIER_ROLE) {
-        require(!verifications[dataId].approved, "Data already verified.");
-
-        if (advancedDataValidation(verifications[dataId].ipfsMetadataHash)) {
-            verifications[dataId].approved = true;
-            verifierReputation[msg.sender] += 1;
-            _mint(verifications[dataId].farmer, dataId);
-
-            emit Verified(dataId, msg.sender);
-        } else {
-            verifierReputation[msg.sender] -= 1;
-        }
-    }
-
-    function raiseDispute(uint256 dataId, string memory reason) external whenNotPaused {
+    modifier isVerifier(string memory accountID) {
         require(
-            verifications[dataId].farmer == msg.sender,
+            accountData[accountID].isVerifier,
+            "User account  "
+        );
+        _;
+    }
+
+    function registerAccount(string memory accountID, address accountAddress, bool verify) external whenNotPaused onlyRole(BACKEND_ROLE) returns(bool) {
+      accountData[accountID] = AccountData({
+        txAddress: accountAddress,
+        isVerifier: verify
+      });
+      return true;
+    }
+
+    function submitAsset(
+        string memory accountID,
+        string memory assetID
+    ) external whenNotPaused rateLimited(accountID) onlyRole(BACKEND_ROLE) returns (uint256) {
+        //Init submissionID
+        verifications[assetID] = VerificationData({
+            id: ++totalSubmissions,
+            account: accountID,
+            approved: false,
+            disputes: []
+        });
+        lastSubmission[accountID] = block.timestamp;
+        emit AssetSubmitted(totalSubmissions, assetID, accountID);
+        return totalSubmissions;
+    }
+
+//Only Verifier
+    function approveAsset(
+        string memory accountID,
+        string memory assetID
+    ) external whenNotPaused onlyRole(BACKEND_ROLE) {
+        VerificationData verification = verifications[assetID];
+        require(!verification.approved, "Data already verified.");
+
+        _mint(accountData[verification.account].txAddress, verification.id);
+
+        verification.approved = true;
+        verifierReputation[accountID]++;
+        totalApprovals++;
+        emit AssetVerified(verification.id, assetID, accountID);
+    }
+
+//Only Farmer
+    function raiseDispute(
+        string memory accountID,
+        string memory assetID,
+        string memory reason
+    ) external whenNotPaused onlyRole(BACKEND_ROLE) {
+        require(
+            verifications[assetID].account == accountID,
             "Only the data submitter can raise a dispute."
         );
 
-        emit DisputeRaised(dataId, msg.sender, reason);
+        // init disputeID & Write dispute (DisputeData)
+        disputes[++totalDisputes] = DisputeData({
+            assetID: assetID,
+            reason: reason,
+            solution: "",
+            status: "submitted",
+            closed: false
+        });
+        // Register dispute (VerificationData)
+        verifications[assetID].disputes.push(totalDisputes);
+
+        emit DisputeRaised(assetID, totalDisputes, reason, accountID);
     }
 
-    function resolveDispute(uint256 dataId, bool approved) external whenNotPaused onlyRole(ADMIN_ROLE) {
-        require(!verifications[dataId].approved, "Data already verified.");
+//Only Verifier
+    function resolveDispute(
+        string memory accountID,
+        uint256 disputeID,
+        string memory solution,
+        string memory status,
+        bool closed
+    ) external whenNotPaused onlyRole(BACKEND_ROLE) {
+        DisputeData dispute = disputes[disputeID];
+        require(!dispute.closed, "Dispute already closed.");
 
-        verifications[dataId].approved = approved;
-        if (approved) {
-            _mint(verifications[dataId].farmer, dataId);
-        }
+        dispute.status = status;
+        dispute.solution = solution;
+        dispute.closed = closed;
 
-        emit DisputeResolved(dataId, msg.sender, approved);
+        emit DisputeResolved(assetID, disputeID, solution, accountID);
     }
 
-    function advancedDataValidation(string memory ipfsMetadataHash) internal pure returns(bool) {
-        // Implement advanced validation logic. Could involve off-chain computation and proofs.
-        // For this placeholder, assume data is always valid.
-        return bytes(ipfsMetadataHash).length > 0;
-    }
-
-
+//Admin Functions
     function addVerifier(address verifier) external onlyRole(ADMIN_ROLE) {
-        grantRole(VERIFIER_ROLE, verifier);
+        grantRole(BACKEND_ROLE, verifier);
         verifierReputation[verifier] = 100;
     }
 
     function removeVerifier(address verifier) external onlyRole(ADMIN_ROLE) {
-        revokeRole(VERIFIER_ROLE, verifier);
+        revokeRole(BACKEND_ROLE, verifier);
+    }
+
+    function setQTime(uint256 newQTime) external onlyRole(ADMIN_ROLE) {
+        qTime = newQTime;
     }
 
     function pause() external onlyRole(ADMIN_ROLE) {
@@ -120,7 +193,11 @@ contract NeptuneChainVerification is
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl, ERC721Enumerable) returns (bool) {
-    return AccessControl.supportsInterface(interfaceId) || ERC721Enumerable.supportsInterface(interfaceId);
-}
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(AccessControl, ERC721Enumerable) returns (bool) {
+        return
+            AccessControl.supportsInterface(interfaceId) ||
+            ERC721Enumerable.supportsInterface(interfaceId);
+    }
 }

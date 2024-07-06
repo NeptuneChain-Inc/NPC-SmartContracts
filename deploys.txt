@@ -1,0 +1,5 @@
+testnet(amoy) - 06/05/2024
+-----------------------------
+credits: 0x11948a80ec36919e7999D54d7f6D7df971814809
+credit_verification [NeptuneChain (NPC)]: 0xc08b42d768eF517CdC0EE126582B728488A5fc92
+credit_marketplace: 0x46126A3Ff66eE9Cf7FF92E4b0709861c03568D4d
