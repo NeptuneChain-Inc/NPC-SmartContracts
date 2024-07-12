@@ -1,29 +1,51 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract CreditContract {
-    address private contractOwner;
-    int256 private totalSupply;
-    int256 private totalDonatedSupply;
-    int256 private totalSold;
-    int256 private totalCertificates;
-    string[] private producers;
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./NPC_AccountManager.sol";
+import "./NPC_RoleManager.sol";
 
-    mapping(string => mapping(string => mapping(string => Supply))) private supply;
-    mapping(string => bool) private producerRegistered;
-    mapping(string => mapping(string => bool)) private producerVerified;
-    mapping(string => string[]) private producerVerifiers;
-    mapping(int256 => Certificate) private certificatesById;
-    mapping(string => int256[]) private accountCertificates;
-    mapping(string => mapping(string => mapping(string => mapping(string => int256))))
-        private accountBalance;
-    mapping(string => int256) private accountTotalBalance;
-    mapping(string => bool) private creditRegistered;
-    string[] private creditTypes;
+interface INPCNFT {
+    function ownerOf(uint256 tokenId) external view returns (address);
 
+    function getCreditTypes(uint256 tokenId)
+        external
+        view
+        returns (string[] memory);
+
+    function getCreditSupplyLimit(uint256 tokenId, string calldata creditType)
+        external
+        view
+        returns (uint256);
+}
+
+contract NeptuneChainCredits is
+    ERC20,
+    Pausable,
+    UUPSUpgradeable,
+    Initializable,
+    ReentrancyGuard
+{
+    // Define roles
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant BACKEND_ROLE = keccak256("BACKEND_ROLE");
+
+        bytes32 public constant PRODUCER_ROLE = keccak256("PRODUCER_ROLE");
+    bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
+    bytes32 public constant INVESTOR_ROLE = keccak256("INVESTOR_ROLE");
+
+    INPCNFT public npcNFT;
+    NPC_AccountManager public accountManager;
+    NPC_RoleManager private roleManager;
+
+    // Certificate data structure
     struct Certificate {
         int256 id;
-        string buyer;
+        string recipient;
         string producer;
         string verifier;
         string creditType;
@@ -32,345 +54,494 @@ contract CreditContract {
         uint256 timestamp;
     }
 
+    // Supply data structure
     struct Supply {
-        int256 issued;
-        int256 available;
-        int256 donated;
+        uint256 issued;
+        uint256 available;
+        uint256 donated;
     }
 
-    event CreditsIssued( string producer, string verifier, string creditType, int256 amount);
+    // Mappings to store data
+    mapping(string => mapping(string => mapping(string => Supply)))
+        private supply;
+    mapping(string => bool) private producerRegistered;
+    mapping(string => mapping(string => bool)) private producerVerified;
+    mapping(string => string[]) private producerVerifiers;
+    mapping(int256 => Certificate) private certificatesById;
+    mapping(string => int256[]) private accountCertificates;
+    mapping(string => mapping(string => mapping(string => mapping(string => uint256))))
+        private accountCreditBalances;
+    string[] private creditTypes;
+    string[] private producers;
+
+    // Total variables
+    int256 private totalSold;
+    int256 private totalCertificates;
+
+    // Recovery duration constants
+    uint256 public constant MIN_RECOVERY_DURATION = 30 days;
+    uint256 public recoveryDuration = 365 days;
+
+    // Events
+    event CreditsIssued(
+        string indexed producer,
+        string verifier,
+        string creditType,
+        uint256 amount
+    );
     event CreditsBought(
-        string accountID,
+        string indexed accountID,
         string producer,
         string verifier,
         string creditType,
-        int256 amount,
-        int256 price
+        uint256 amount,
+        uint256 price
     );
     event CreditsTransferred(
-        string senderAccountID,
+        string indexed senderAccountID,
         string receiverAccountID,
         string producer,
         string verifier,
         string creditType,
-        int256 amount,
-        int256 price
+        uint256 amount,
+        uint256 price
     );
     event CreditsDonated(
-        string accountID,
+        string indexed accountID,
         string producer,
         string verifier,
         string creditType,
-        int256 amount
+        uint256 amount
     );
     event CertificateCreated(
-        int256 certificateId,
-        string accountID,
+        int256 indexed certificateId,
+        string indexed accountID,
         string producer,
         string verifier,
         string creditType,
-        int256 balance
+        uint256 balance
     );
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event TokensRecovered(string indexed accountID, uint256 amount);
 
-    constructor() {
-        contractOwner = msg.sender;
+    /**
+     * @dev Constructor to initialize the ERC20 token.
+     */
+    constructor() ERC20("NeptuneChainCredits", "NCC") {}
+
+    /**
+     * @dev Initializer function to initialize the contract.
+     * @param _npcNFT Address of the NPCNFT contract.
+     * @param accountManagerAddress The address of the NPC_AccountManager contract.
+     * @param roleManagerAddress The address of the NPC_RoleManager contract.
+     */
+    function initialize(
+      address _npcNFT, 
+      address accountManagerAddress,
+        address roleManagerAddress
+        )
+        public
+        initializer
+    {
+        npcNFT = INPCNFT(_npcNFT);
+                roleManager = NPC_RoleManager(roleManagerAddress);
+        accountManager = NPC_AccountManager(accountManagerAddress);
     }
 
-    modifier onlyOwner() {
+    modifier onlyAdmin() {
         require(
-            msg.sender == contractOwner,
-            "Only the contract owner can call this function."
+            roleManager.isOnlyAdmin(msg.sender),
+            "Caller is not an admin address."
         );
         _;
     }
 
-    function getOwner() public view returns (address _owner) {
-        _owner = contractOwner;
+    modifier onlyAdminOrBackend() {
+        require(
+            roleManager.onlyAdminOrBackend(msg.sender),
+            "Caller is not an admin or  backend address."
+        );
+        _;
     }
 
-    function getTotalSupply() public view returns (int256 _totalSupply) {
-        _totalSupply = totalSupply;
+    modifier onlyRegistered(string memory accountID) {
+        require(accountManager.isRegistered(accountID), "Account not registered");
+        _;
     }
 
-    function getTotalDonatedSupply()
-        public
-        view
-        returns (int256 _totalDonatedSupply)
-    {
-        _totalDonatedSupply = totalDonatedSupply;
+    modifier onlyRegisteredAndNonBlacklisted(string memory accountID) {
+        require(accountManager.isNotBlacklisted(accountID), "Account not registered or is blacklisted");
+        _;
     }
 
-    function getTotalCertificates()
-        public
-        view
-        returns (int256 _totalCertificates)
-    {
-        _totalCertificates = totalCertificates;
+    modifier onlyRegisteredProducer(string memory producer) {
+        require(producerRegistered[producer], "Producer not registered");
+        _;
     }
 
-    function getCertificateById(
-        int256 certificateId
-    ) public view returns (Certificate memory _certificate) {
-        _certificate = certificatesById[certificateId];
-    }
-
-    function getProducers() public view returns (string[] memory _producers) {
-        _producers = producers;
-    }
-
-    function getProducerVerifiers(
-        string memory producer
-    ) public view returns (string[] memory _producerVerifiers) {
-        _producerVerifiers = producerVerifiers[_toLowerCase(producer)];
-    }
-
-    function isCreditRegistered(
-        string memory creditType
-    ) public view returns (bool _creditRegistered) {
-        _creditRegistered = creditRegistered[_toLowerCase(creditType)];
-    }
-
-    function getCreditTypes() public view returns(string[] memory _creditTypes) {
-        _creditTypes = creditTypes;
-    }
-    function getSupply(
-        string memory producer,
-        string memory verifier,
-        string memory creditType
-    ) public view returns (Supply memory _supply) {
-        _supply = supply[_toLowerCase(producer)][
-            _toLowerCase(verifier)
-        ][_toLowerCase(creditType)];
-    }
-
-    function getTotalSold() public view returns(int256 _totalSold) {
-       _totalSold = totalSold;
-    }
-
-    function getAccountBalance(
-        string memory accountID,
-        string memory producer,
-        string memory verifier,
-        string memory creditType
-    ) public view returns (int256 _accountBalance) {
-        _accountBalance = accountBalance[_toLowerCase(accountID)][
-            _toLowerCase(producer)
-        ][_toLowerCase(verifier)][_toLowerCase(creditType)];
-    }
-
-    function getAccountTotalBalance(
-        string memory accountID
-    ) public view returns (int256 _accountTotalBalance) {
-        _accountTotalBalance = accountTotalBalance[_toLowerCase(accountID)];
-    }
-
-    function getAccountCertificates(
-        string memory accountID
-    ) public view returns (int256[] memory _accountCertificates) {
-        _accountCertificates = accountCertificates[_toLowerCase(accountID)];
-    }
-
-    function isProducerRegistered(
-        string memory producer
-    ) public view returns (bool _producerRegistered) {
-        _producerRegistered = producerRegistered[_toLowerCase(producer)];
-    }
-
-    function isProducerVerified(
+    modifier onlyRegisteredVerifier(
         string memory producer,
         string memory verifier
-    ) public view returns (bool _producerVerified) {
-        _producerVerified = producerVerified[_toLowerCase(producer)][
-            _toLowerCase(verifier)
-        ];
+    ) {
+        require(
+            producerVerified[producer][verifier],
+            "Verifier not registered for this producer"
+        );
+        _;
     }
 
+    modifier verifyAccountRole(string memory account, bytes32 role) {
+        require(
+            accountManager.verifyRole(account, role),
+            "Account does not have the appropriate role"
+        );
+        _;
+    }
+
+    modifier balanceCovers(string memory accountID, uint256 amount) {
+        require(balanceOf(accountManager.getAccountData(accountID).txAddress) >= amount, "Insufficient ERC20 balance");
+        _;
+    }
+
+    modifier updateLastActive(string memory accountID) {
+        accountManager.updateLastActive(accountID);
+        _;
+    }
+
+    /**
+     * @dev Authorize upgrade for UUPS upgradeability.
+     * @param newImplementation Address of the new implementation.
+     */
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyAdmin
+    {}
+
+    /**
+     * @dev Issue credits to a producer.
+     * @param senderID The ID of the sender.
+     * @param nftTokenId The NFT token ID.
+     * @param producer The producer ID.
+     * @param verifier The verifier ID.
+     * @param creditType The type of credit.
+     * @param amount The amount of credits to issue.
+     */
     function issueCredits(
-        string memory _producer,
-        string memory _verifier,
-        string memory _creditType,
-        int256 amount
-    ) public onlyOwner returns (bool _issued) {
-        string memory producer = _toLowerCase(_producer);
-        string memory verifier = _toLowerCase(_verifier);
-        string memory creditType = _toLowerCase(_creditType);
-        if(!isCreditRegistered(creditType)){
-            creditTypes.push(creditType);
-            creditRegistered[creditType] = true;
-        }
-        totalSupply += amount;
+        string memory senderID,
+        uint256 nftTokenId,
+        string memory producer,
+        string memory verifier,
+        string memory creditType,
+        uint256 amount
+    )
+        public
+        onlyAdminOrBackend
+        onlyRegisteredAndNonBlacklisted(senderID)
+        verifyAccountRole(senderID, PRODUCER_ROLE)
+        onlyRegisteredVerifier(producer, verifier)
+        updateLastActive(senderID)
+        returns (bool)
+    {
+        require(
+            ownerOfNFT(senderID, nftTokenId),
+            "Sender does not own the NFT"
+        );
+        require(
+            isAllowedCreditType(nftTokenId, creditType),
+            "Credit type not allowed by this NFT"
+        );
+        require(
+            amount <= npcNFT.getCreditSupplyLimit(nftTokenId, creditType),
+            "Exceeds allowed supply limit"
+        );
+
+        _mint(address(this), amount);
+
         Supply storage _supply = supply[producer][verifier][creditType];
         _supply.issued += amount;
         _supply.available += amount;
-        _supply.donated += 0;
-        if (!producerRegistered[producer]) {
-            producers.push(producer);
-            producerRegistered[producer] = true;
-        }
-        if (!producerVerified[producer][verifier]) {
-            producerVerifiers[producer].push(verifier);
-            producerVerified[producer][verifier] = true;
-        }
+
         emit CreditsIssued(producer, verifier, creditType, amount);
-        _issued = true;
-    }
-
-    function buyCredits(
-        string memory _accountID,
-        string memory _producer,
-        string memory _verifier,
-        string memory _creditType,
-        int256 amount,
-        int256 price
-    ) public onlyOwner returns (bool _creditsBought) {
-        string memory accountID = _toLowerCase(_accountID);
-        string memory producer = _toLowerCase(_producer);
-        string memory verifier = _toLowerCase(_verifier);
-        string memory creditType = _toLowerCase(_creditType);
-        require(
-            supply[producer][verifier][creditType].available >= amount,
-            "Insufficient issued supply from the specified producer and verifier."
-        );
-        supply[producer][verifier][creditType].available -= amount;
-        accountTotalBalance[accountID] += amount;
-        totalSold += amount;
-        emit CreditsBought(accountID, producer, verifier, creditType, amount, price);
-        _creditsBought = _mintCertificate(
-            accountID,
-            producer,
-            verifier,
-            creditType,
-            amount,
-            price
-        );
-    }
-
-    function transferCredits(
-        string memory senderAccountID,
-        string memory receiverAccountID,
-        string memory _producer,
-        string memory _verifier,
-        string memory _creditType,
-        int256 amount,
-        int256 price
-    ) public onlyOwner returns (bool _creditsTransferred) {
-        string memory sender = _toLowerCase(senderAccountID);
-        string memory receiver = _toLowerCase(receiverAccountID);
-        string memory producer = _toLowerCase(_producer);
-        string memory verifier = _toLowerCase(_verifier);
-        string memory creditType = _toLowerCase(_creditType);
-        require(_compareStrings(sender, receiver), "Cannot transfer to self.");
-        require(
-            accountBalance[sender][producer][verifier][creditType] >= amount,
-            "Insufficient balance"
-        );
-        accountBalance[sender][producer][verifier][creditType] -= amount;
-        accountTotalBalance[sender] -= amount;
-        accountBalance[receiver][producer][verifier][creditType] += amount;
-        accountTotalBalance[receiver] += amount;
-        emit CreditsTransferred(sender, receiver, producer, verifier, creditType, amount, price);
-        _creditsTransferred = _mintCertificate(
-            receiver,
-            producer,
-            verifier,
-            creditType,
-            amount,
-            price
-        );
-    }
-
-    function donateCredits(
-        string memory _accountID,
-        string memory _producer,
-        string memory _verifier,
-        string memory _creditType,
-        int256 amount
-    ) public onlyOwner returns (bool _creditsDonated) {
-        string memory accountID = _toLowerCase(_accountID);
-        string memory producer = _toLowerCase(_producer);
-        string memory verifier = _toLowerCase(_verifier);
-        string memory creditType = _toLowerCase(_creditType);
-        require(
-            accountBalance[accountID][producer][verifier][creditType] >= amount,
-            "Insufficient balance"
-        );
-        accountBalance[accountID][producer][verifier][creditType] -= amount;
-        accountTotalBalance[accountID] -= amount;
-        supply[producer][verifier][creditType].donated += amount;
-        totalSupply -= amount;
-        totalDonatedSupply += amount;
-        emit CreditsDonated(accountID, producer, verifier, creditType, amount);
-        _creditsDonated = true;
-    }
-
-    function transferOwnership(
-        address newOwner
-    ) public onlyOwner returns (bool) {
-        require(newOwner != address(0), "Invalid new owner address.");
-        contractOwner = newOwner;
-        emit OwnershipTransferred(contractOwner, newOwner);
         return true;
     }
 
-    function _mintCertificate(
-        string memory _accountID,
-        string memory _producer,
-        string memory _verifier,
-        string memory _creditType,
-        int256 amount,
-        int256 price
-    ) internal returns (bool) {
-        string memory accountID = _toLowerCase(_accountID);
-        string memory producer = _toLowerCase(_producer);
-        string memory verifier = _toLowerCase(_verifier);
-        string memory creditType = _toLowerCase(_creditType);
-        totalCertificates++;
-        Certificate storage cert = certificatesById[totalCertificates];
-        cert.id = totalCertificates;
-        cert.buyer = accountID;
-        cert.producer = producer;
-        cert.verifier = verifier;
-        cert.creditType = creditType;
-        cert.balance += amount;
-        cert.price = price;
-        cert.timestamp = block.timestamp;
-        accountCertificates[accountID].push(cert.id);
-        emit CertificateCreated(
-            totalCertificates,
+    /**
+     * @dev Buy credits from a producer.
+     * @param accountID The ID of the buyer account.
+     * @param producer The producer ID.
+     * @param verifier The verifier ID.
+     * @param creditType The type of credit.
+     * @param amount The amount of credits to buy.
+     * @param price The price per credit.
+     */
+    function buyCredits(
+        string memory accountID,
+        string memory producer,
+        string memory verifier,
+        string memory creditType,
+        uint256 amount,
+        uint256 price
+    )
+        public
+        onlyAdminOrBackend
+        onlyRegisteredAndNonBlacklisted(accountID)
+        verifyAccountRole(accountID, INVESTOR_ROLE)
+        updateLastActive(accountID)
+        nonReentrant
+    {
+        require(
+            producerVerified[producer][verifier],
+            "Verifier not registered for this producer"
+        );
+        Supply storage _supply = supply[producer][verifier][creditType];
+        require(_supply.available >= amount, "Not enough credits available");
+        require(balanceOf(address(this)) >= amount, "Insufficient ERC20 balance");
+
+        _transfer(address(this), accountManager.getAccountData(accountID).txAddress, amount);
+
+        _supply.available -= amount;
+        accountCreditBalances[accountID][producer][verifier][
+            creditType
+        ] += amount;
+        totalSold += int256(amount);
+
+        _mintCertificate(accountID, producer, verifier, creditType, amount, price);
+
+        emit CreditsBought(
             accountID,
+            producer,
+            verifier,
+            creditType,
+            amount,
+            price
+        );
+    }
+
+    /**
+     * @dev Transfer credits to another account.
+     * @param senderID The ID of the sender.
+     * @param recipientID The ID of the recipient.
+     * @param producer The producer ID.
+     * @param verifier The verifier ID.
+     * @param creditType The type of credit.
+     * @param amount The amount of credits to transfer.
+     * @param price The price per credit.
+     */
+    function transferCredits(
+        string memory senderID,
+        string memory recipientID,
+        string memory producer,
+        string memory verifier,
+        string memory creditType,
+        uint256 amount,
+        uint256 price
+    )
+        public
+        onlyAdminOrBackend
+        onlyRegisteredAndNonBlacklisted(senderID)
+        onlyRegisteredAndNonBlacklisted(recipientID)
+        onlyRegisteredVerifier(producer, verifier)
+        updateLastActive(senderID)
+        nonReentrant
+    {
+        require(
+            accountCreditBalances[senderID][producer][verifier][creditType] >=
+                amount,
+            "Insufficient balance"
+        );
+
+        accountCreditBalances[senderID][producer][verifier][
+            creditType
+        ] -= amount;
+        accountCreditBalances[recipientID][producer][verifier][
+            creditType
+        ] += amount;
+
+        _transfer(
+            accountManager.getAccountData(senderID).txAddress,
+            accountManager.getAccountData(recipientID).txAddress,
+            amount
+        );
+
+        _mintCertificate(recipientID, producer, verifier, creditType, amount, price);
+
+        emit CreditsTransferred(
+            senderID,
+            recipientID,
+            producer,
+            verifier,
+            creditType,
+            amount,
+            price
+        );
+    }
+
+    /**
+     * @dev Donate credits.
+     * @param senderID The ID of the sender.
+     * @param producer The producer ID.
+     * @param verifier The verifier ID.
+     * @param creditType The type of credit.
+     * @param amount The amount of credits to donate.
+     */
+    function donateCredits(
+        string memory senderID,
+        string memory producer,
+        string memory verifier,
+        string memory creditType,
+        uint256 amount
+    )
+        public
+        onlyAdminOrBackend
+        onlyRegisteredAndNonBlacklisted(senderID)
+        onlyRegisteredVerifier(producer, verifier)
+        updateLastActive(senderID)
+        nonReentrant
+    {
+        require(
+            accountCreditBalances[senderID][producer][verifier][creditType] >=
+                amount,
+            "Insufficient balance"
+        );
+
+        accountCreditBalances[senderID][producer][verifier][
+            creditType
+        ] -= amount;
+        supply[producer][verifier][creditType].donated += amount;
+
+        _burn(accountManager.getAccountData(senderID).txAddress, uint256(amount));
+
+        emit CreditsDonated(senderID, producer, verifier, creditType, amount);
+    }
+
+    function registerProducer(
+        string memory producer
+    ) external onlyAdminOrBackend {
+      string memory _producer = _toLowerCase(producer);
+        require(!producerRegistered[_producer], "Producer already registered");
+        producerRegistered[_producer] = true;
+        producers.push(_producer);
+    }
+
+    function registerVerifier(
+        string memory producer,
+        string memory verifier
+    )
+        external
+        onlyAdminOrBackend
+        onlyRegisteredProducer(producer)
+    {
+      string memory _verifier = _toLowerCase(verifier);
+        require(
+            !producerVerified[producer][_verifier],
+            "Verifier already registered for this producer"
+        );
+
+        producerVerified[producer][_verifier] = true;
+        producerVerifiers[producer].push(_verifier);
+    }
+
+    function setRecoveryDuration(
+        uint256 duration
+    ) external onlyAdmin {
+        require(duration >= MIN_RECOVERY_DURATION, "Duration too short");
+        recoveryDuration = duration;
+    }
+
+    /**
+     * @dev Pause contract.
+     */
+    function pause() external onlyAdmin {
+        _pause();
+    }
+
+    /**
+     * @dev Unpause contract.
+     */
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
+
+    function _mintCertificate(string memory recipient, string memory producer, string memory verifier, string memory creditType, uint256 amount, uint256 price) internal {
+         int256 certificateId = ++totalCertificates;
+        certificatesById[certificateId] = Certificate({
+            id: certificateId,
+            recipient: recipient,
+            producer: producer,
+            verifier: verifier,
+            creditType: creditType,
+            balance: int256(amount),
+            price: int256(price),
+            timestamp: block.timestamp
+        });
+        accountCertificates[recipient].push(certificateId);
+
+        emit CertificateCreated(
+            certificateId,
+            recipient,
             producer,
             verifier,
             creditType,
             amount
         );
-        return true;
     }
 
-    function _toLowerCase(
-        string memory _str
-    ) internal pure returns (string memory) {
-        bytes memory strBytes = bytes(_str);
-        uint256 strLength = strBytes.length;
-
-        for (uint256 i = 0; i < strLength; i++) {
-            // Convert uppercase character to lowercase
-            if ((uint8(strBytes[i]) >= 65) && (uint8(strBytes[i]) <= 90)) {
-                strBytes[i] = bytes1(uint8(strBytes[i]) + 32);
+    /**
+     * @dev Convert string to lower case.
+     * @param str The string to convert.
+     * @return The lower case string.
+     */
+    function _toLowerCase(string memory str)
+        internal
+        pure
+        returns (string memory)
+    {
+        bytes memory bStr = bytes(str);
+        bytes memory bLower = new bytes(bStr.length);
+        for (uint256 i = 0; i < bStr.length; i++) {
+            if ((uint8(bStr[i]) >= 65) && (uint8(bStr[i]) <= 90)) {
+                bLower[i] = bytes1(uint8(bStr[i]) + 32);
+            } else {
+                bLower[i] = bStr[i];
             }
         }
-
-        return string(strBytes);
+        return string(bLower);
     }
 
-    function _compareStrings(
-        string memory _str1,
-        string memory _str2
-    ) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked(_str1)) ==
-            keccak256(abi.encodePacked(_str2)));
+    /**
+     * @dev Check if the sender owns the NFT.
+     * @param accountID The ID of the account.
+     * @param tokenId The NFT token ID.
+     * @return True if the sender owns the NFT, false otherwise.
+     */
+    function ownerOfNFT(string memory accountID, uint256 tokenId)
+        internal
+        view
+        returns (bool)
+    {
+        return npcNFT.ownerOf(tokenId) == accountManager.getAccountData(accountID).txAddress;
+    }
+
+    /**
+     * @dev Check if the credit type is allowed by the NFT.
+     * @param tokenId The NFT token ID.
+     * @param creditType The type of credit.
+     * @return True if the credit type is allowed, false otherwise.
+     */
+    function isAllowedCreditType(uint256 tokenId, string memory creditType)
+        internal
+        view
+        returns (bool)
+    {
+        string[] memory allowedCreditTypes = npcNFT.getCreditTypes(tokenId);
+        for (uint256 i = 0; i < allowedCreditTypes.length; i++) {
+            if (
+                keccak256(abi.encodePacked(allowedCreditTypes[i])) ==
+                keccak256(abi.encodePacked(creditType))
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 }
