@@ -1,5 +1,12 @@
-testnet(amoy) - 06/05/2024
+testnet(amoy) - 2024/05/06
 -----------------------------
 credits: 0x11948a80ec36919e7999D54d7f6D7df971814809
 credit_verification [NeptuneChain (NPC)]: 0xc08b42d768eF517CdC0EE126582B728488A5fc92
 credit_marketplace: 0x46126A3Ff66eE9Cf7FF92E4b0709861c03568D4d
+
+testnet(amoy) - 2024/07/16
+------------------------------
+role_manager: 0xCF969ccd0FcFe54460CBB878aadCE486827194c2
+account_manager: 0x6cE7c6b673e79e61e20E6580A9b0dfdFd6B3fd74
+creditVerification: 0xdac2EE591A69dAc5D7137e3089D844a356e60AB7
+credit_tokens: 0xb0503d32A0649F046a2537b2Ea1c710C30d1DEb6

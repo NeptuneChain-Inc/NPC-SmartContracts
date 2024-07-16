@@ -286,27 +286,24 @@ contract NeptuneChainVerification is
      * @param disputeID The ID of the dispute to resolve.
      * @param solution The solution to the dispute.
      * @param status The status of the dispute.
-     * @param closed The closed status of the dispute.
      */
     function resolveDispute(
         string memory accountID,
         uint256 disputeID,
         string memory solution,
-        string memory status,
-        bool closed
+        string memory status
     )
         external
         whenNotPaused
         onlyBackend
         notBlacklisted(accountID)
-        isVerifier(accountID)
         isDispute(disputeID)
     {
         DisputeData storage dispute = disputes[disputeID];
 
         dispute.status = status;
         dispute.solution = solution;
-        dispute.closed = closed;
+        dispute.closed = true;
 
         emit DisputeResolved(dispute.assetID, disputeID, solution, accountID);
     }

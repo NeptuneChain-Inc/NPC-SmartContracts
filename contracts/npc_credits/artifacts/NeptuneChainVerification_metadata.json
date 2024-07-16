@@ -727,11 +727,6 @@
 						"internalType": "string",
 						"name": "status",
 						"type": "string"
-					},
-					{
-						"internalType": "bool",
-						"name": "closed",
-						"type": "bool"
 					}
 				],
 				"name": "resolveDispute",
@@ -1201,11 +1196,10 @@
 						"reason": "The reason for the dispute."
 					}
 				},
-				"resolveDispute(string,uint256,string,string,bool)": {
+				"resolveDispute(string,uint256,string,string)": {
 					"details": "Resolve a dispute for an asset.",
 					"params": {
 						"accountID": "The ID of the verifier account resolving the dispute.",
-						"closed": "The closed status of the dispute.",
 						"disputeID": "The ID of the dispute to resolve.",
 						"solution": "The solution to the dispute.",
 						"status": "The status of the dispute."
@@ -1439,11 +1433,11 @@
 			]
 		},
 		"contracts/npc_credits/npc_credit_verification.sol": {
-			"keccak256": "0xc556422c9b5591f3c3c6621da086e8b313946559f8c6d527606bd350750819f4",
+			"keccak256": "0x451b18a47701579312a315e9febdd7469cbd2107bdda9631109e66a12c143f39",
 			"license": "UNLICENSED",
 			"urls": [
-				"bzz-raw://9761d396e6786916c14140042804f73ecb3d8f541b8048d3c1ff359277001327",
-				"dweb:/ipfs/QmXarBQCi6Ec3qYVaPSkyBcTWyVU96VKVcWe1ci3NBwmcC"
+				"bzz-raw://a18b68387d1b22b19b2c01977aaae19b60e1a507044e02085c014fd66ae9ebe4",
+				"dweb:/ipfs/QmWvLRKvcuYtWawMZsndvCv5sFmJwxQ4wBRk3mxKNJFJmF"
 			]
 		}
 	},

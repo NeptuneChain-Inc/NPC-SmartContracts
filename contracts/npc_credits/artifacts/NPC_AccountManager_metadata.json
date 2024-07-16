@@ -389,11 +389,11 @@
 			]
 		},
 		"contracts/npc_credits/NPC_AccountManager.sol": {
-			"keccak256": "0xcf9393282719dcbde3d75da791b9892fcc875015d50e70780068769cb38dac30",
+			"keccak256": "0xe2a7146ef6635064a09d812b8b6b68fe99b0570262bda1ad160b94c6f1e15fa9",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://40b96cc56f241d5d03b05e81bb4a014d694d1e8743e834a5f331c25e0b8cd0a1",
-				"dweb:/ipfs/QmWkw78AzbcZQAdyiwMbnL4DK9LTgqq3DenFLgbKTMmjX6"
+				"bzz-raw://d49221e46355dace962854b8c553e23fb123ea1022e5393c27e0ce6ff4bc799f",
+				"dweb:/ipfs/QmXSYbA7d9LoF2ayKw8Hr3KJFF6viJ36W6AZy5sTB1UHH7"
 			]
 		},
 		"contracts/npc_credits/NPC_RoleManager.sol": {
