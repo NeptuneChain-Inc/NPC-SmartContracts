@@ -71,7 +71,6 @@ contract NeptuneChainCredits is
     mapping(string => int256[]) private accountCertificates;
     mapping(string => mapping(string => mapping(string => mapping(string => uint256))))
         private accountCreditBalances;
-    string[] private creditTypes;
     string[] private producers;
 
     // Total variables
@@ -216,6 +215,159 @@ contract NeptuneChainCredits is
         override
         onlyAdmin
     {}
+
+    // Getter functions for the state variables
+
+    /**
+     * @notice Get the total certificates issued.
+     * @return totalCertificates Total number of certificates issued.
+     */
+    function getTotalCertificates() external view returns (int256) {
+        return totalCertificates;
+    }
+
+    /**
+     * @notice Get the total credits sold.
+     * @return totalSold Total number of credits sold.
+     */
+    function getTotalSold() external view returns (int256) {
+        return totalSold;
+    }
+
+    /**
+     * @notice Get the registered status of a producer.
+     * @param producer The ID of the producer.
+     * @return bool True if the producer is registered, false otherwise.
+     */
+    function isProducerRegistered(string memory producer) external view returns (bool) {
+        return producerRegistered[producer];
+    }
+
+    /**
+     * @notice Get the verified status of a verifier for a producer.
+     * @param producer The ID of the producer.
+     * @param verifier The ID of the verifier.
+     * @return bool True if the verifier is registered for the producer, false otherwise.
+     */
+    function isVerifierRegistered(string memory producer, string memory verifier) external view returns (bool) {
+        return producerVerified[producer][verifier];
+    }
+
+    /**
+     * @notice Get the verifiers registered for a producer.
+     * @param producer The ID of the producer.
+     * @return string[] An array of verifier IDs registered for the producer.
+     */
+    function getProducerVerifiers(string memory producer) external view returns (string[] memory) {
+        return producerVerifiers[producer];
+    }
+
+    /**
+     * @notice Get the supply details for a specific producer, verifier, and credit type.
+     * @param producer The ID of the producer.
+     * @param verifier The ID of the verifier.
+     * @param creditType The type of the credit.
+     * @return issued The number of credits issued.
+     * @return available The number of credits available.
+     * @return donated The number of credits donated.
+     */
+    function getSupply(string memory producer, string memory verifier, string memory creditType)
+        external
+        view
+        returns (uint256 issued, uint256 available, uint256 donated)
+    {
+        Supply memory _supply = supply[producer][verifier][creditType];
+        return (_supply.issued, _supply.available, _supply.donated);
+    }
+
+    /**
+     * @notice Get the certificate details by ID.
+     * @param certificateId The ID of the certificate.
+     * @return id The certificate ID.
+     * @return recipient The recipient of the certificate.
+     * @return producer The producer associated with the certificate.
+     * @return verifier The verifier associated with the certificate.
+     * @return creditType The type of credit associated with the certificate.
+     * @return balance The balance of credits in the certificate.
+     * @return price The price of credits in the certificate.
+     * @return timestamp The timestamp of the certificate creation.
+     */
+    function getCertificateById(int256 certificateId)
+        external
+        view
+        returns (
+            int256 id,
+            string memory recipient,
+            string memory producer,
+            string memory verifier,
+            string memory creditType,
+            int256 balance,
+            int256 price,
+            uint256 timestamp
+        )
+    {
+        Certificate memory certificate = certificatesById[certificateId];
+        return (
+            certificate.id,
+            certificate.recipient,
+            certificate.producer,
+            certificate.verifier,
+            certificate.creditType,
+            certificate.balance,
+            certificate.price,
+            certificate.timestamp
+        );
+    }
+
+    /**
+     * @notice Get all certificate IDs associated with an account.
+     * @param accountID The ID of the account.
+     * @return int256[] An array of certificate IDs.
+     */
+    function getAccountCertificates(string memory accountID)
+        external
+        view
+        returns (int256[] memory)
+    {
+        return accountCertificates[accountID];
+    }
+
+    /**
+     * @notice Get the credit balance for a specific account, producer, verifier, and credit type.
+     * @param accountID The ID of the account.
+     * @param producer The ID of the producer.
+     * @param verifier The ID of the verifier.
+     * @param creditType The type of the credit.
+     * @return uint256 The credit balance.
+     */
+    function getAccountCreditBalance(
+        string memory accountID,
+        string memory producer,
+        string memory verifier,
+        string memory creditType
+    )
+        external
+        view
+        returns (uint256)
+    {
+        return accountCreditBalances[accountID][producer][verifier][creditType];
+    }
+
+    /**
+     * @notice Get all registered producers.
+     * @return string[] An array of registered producers.
+     */
+    function getProducers() external view returns (string[] memory) {
+        return producers;
+    }
+
+    /**
+     * @notice Get the current recovery duration.
+     * @return uint256 The recovery duration in seconds.
+     */
+    function getRecoveryDuration() external view returns (uint256) {
+        return recoveryDuration;
+    }
 
     /**
      * @dev Issue credits to a producer.
